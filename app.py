@@ -25,21 +25,19 @@ def inject_global_vars():
 # --- Page Routes ---
 
 @app.route("/")
-@app.route("/api/index")
-@app.route("/api/index/")
-@app.route("/api/index.py")
 def index():
     return redirect(url_for("dashboard"))
 
-@app.errorhandler(404)
-def handle_404(e):
-    # If the path starts with /api/index, redirect to the stripped path
-    req_path = request.path
-    for prefix in ["/api/index.py", "/api/index"]:
-        if req_path.startswith(prefix):
-            stripped = req_path[len(prefix):] or "/"
-            return redirect(stripped)
-    return f"404 Not Found: {request.path}", 404
+@app.route("/api/index")
+@app.route("/api/index/")
+@app.route("/api/index.py")
+def vercel_debug():
+    return jsonify({
+        "PATH_INFO": request.environ.get("PATH_INFO"),
+        "HTTP_X_MATCHED_PATH": request.environ.get("HTTP_X_MATCHED_PATH"),
+        "headers": dict(request.headers),
+        "keys": [k for k in request.environ.keys() if any(w in k for w in ["PATH", "URL", "URI", "ROUTE", "VERCEL", "RAW"])]
+    })
 
 @app.route("/dashboard")
 def dashboard():
