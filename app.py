@@ -22,22 +22,33 @@ def inject_global_vars():
         "is_sql_server": db.is_sql_server
     }
 
+from urllib.parse import parse_qs, urlencode
+
+class VercelPathMiddleware:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        query_string = environ.get("QUERY_STRING", "")
+        if "__path=" in query_string:
+            qs = parse_qs(query_string, keep_blank_values=True)
+            if "__path" in qs:
+                raw_path = qs.pop("__path")[0] or "/"
+                if not raw_path.startswith("/"):
+                    raw_path = "/" + raw_path
+                while raw_path.startswith("//"):
+                    raw_path = raw_path[1:]
+                environ["PATH_INFO"] = raw_path
+                environ["QUERY_STRING"] = urlencode(qs, doseq=True)
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = VercelPathMiddleware(app.wsgi_app)
+
 # --- Page Routes ---
 
 @app.route("/")
 def index():
     return redirect(url_for("dashboard"))
-
-@app.route("/api/index")
-@app.route("/api/index/")
-@app.route("/api/index.py")
-def vercel_debug():
-    return jsonify({
-        "PATH_INFO": request.environ.get("PATH_INFO"),
-        "HTTP_X_MATCHED_PATH": request.environ.get("HTTP_X_MATCHED_PATH"),
-        "headers": dict(request.headers),
-        "keys": [k for k in request.environ.keys() if any(w in k for w in ["PATH", "URL", "URI", "ROUTE", "VERCEL", "RAW"])]
-    })
 
 @app.route("/dashboard")
 def dashboard():
