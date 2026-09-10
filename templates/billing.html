@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}វិក័យបត្រ & ការទូទាត់ - E-POWER{% endblock %}
+{% block header_title %}🧾 វិក័យបត្រ & ការទូទាត់ប្រាក់ (Billing & Payments){% endblock %}
+
+{% block content %}
+<div class="panel">
+  <!-- Filter & Search Toolbar -->
+  <div class="toolbar">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <a href="{{ url_for('billing', status='Unpaid', search=search) }}" class="btn btn-sm {% if status_filter == 'Unpaid' %}btn-danger{% else %}btn-light{% endif %}">
+        ⚠️ មិនទាន់បង់ (Unpaid)
+      </a>
+      <a href="{{ url_for('billing', status='Paid', search=search) }}" class="btn btn-sm {% if status_filter == 'Paid' %}btn-success{% else %}btn-light{% endif %}">
+        ✔ បង់រួច (Paid)
+      </a>
+      <a href="{{ url_for('billing', status='All', search=search) }}" class="btn btn-sm {% if status_filter == 'All' %}btn-primary{% else %}btn-light{% endif %}">
+        📋 ទាំងអស់ (All)
+      </a>
+    </div>
+
+    <form method="GET" action="{{ url_for('billing') }}" class="toolbar-search">
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <input type="text" name="search" value="{{ search }}" class="input-text" placeholder="ស្វែងរកអតិថិជន ឬលេខវិក័យបត្រ...">
+      <button type="submit" class="btn btn-primary">ស្វែងរក</button>
+      {% if search %}
+        <a href="{{ url_for('billing', status=status_filter) }}" class="btn btn-light">សម្អាត</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Summary Banner -->
+  <div style="background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 12px 18px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-main);">
+      📊 សរុបវិក័យបត្រ: <strong>{{ "{:,}".format(invoices|length) }}</strong> ច្បាប់
+    </div>
+    <div style="font-size: 1rem; font-weight: 700; color: var(--primary);">
+      ទឹកប្រាក់សរុប: {{ "{:,.0f}".format(total_amount) }} ៛ (~${{ "%.2f" % (total_amount / 4100) }})
+    </div>
+  </div>
+
+  <!-- Invoices Table -->
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>លេខវិក័យបត្រ</th>
+          <th>ឈ្មោះអតិថិជន</th>
+          <th>លេខទូរស័ព្ទ</th>
+          <th>ខែគិតលុយ</th>
+          <th>កុងទ័រ (ចាស់ ➔ ថ្មី)</th>
+          <th>ប្រើប្រាស់</th>
+          <th>ទឹកប្រាក់សរុប</th>
+          <th>ស្ថានភាព</th>
+          <th>កាលបរិច្ឆេទបង់</th>
+          <th style="text-align: right;">សកម្មភាព</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td><strong>INV-{{ "%05d" % inv.invoice_id }}</strong></td>
+          <td><strong>{{ inv.customer_name }}</strong></td>
+          <td>{{ inv.phone_number }}</td>
+          <td>{{ inv.billing_month }}</td>
+          <td>{{ "%.0f" % inv.previous_reading }} ➔ {{ "%.0f" % inv.current_reading }}</td>
+          <td><strong style="color: var(--primary);">{{ "%.1f" % inv.usage_kwh }} kWh</strong></td>
+          <td><strong>{{ "{:,.0f}".format(inv.total_amount) }} ៛</strong></td>
+          <td>
+            {% if inv.is_paid %}
+              <span class="badge badge-success">✔ បង់រួច</span>
+            {% else %}
+              <span class="badge badge-danger">✖ មិនទាន់បង់</span>
+            {% endif %}
+          </td>
+          <td style="font-size: 0.82rem; color: var(--text-muted);">
+            {{ inv.payment_date or '-' }}
+          </td>
+          <td style="text-align: right; white-space: nowrap;">
+            {% if not inv.is_paid %}
+              <button class="btn btn-success btn-sm" onclick="payInvoice({{ inv.invoice_id }}, '{{ inv.customer_name }}', {{ inv.total_amount }})">💳 បង់ប្រាក់</button>
+            {% endif %}
+            <a href="{{ url_for('print_invoice', invoice_id=inv.invoice_id) }}" target="_blank" class="btn btn-light btn-sm">🖨️ បោះពុម្ព</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 30px;">
+            មិនមានទិន្នន័យវិក័យបត្រក្នុងតម្រងនេះទេ
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - E-POWER{% endblock %}
+{% block header_title %}📊 ផ្ទាំងគ្រប់គ្រងទូទៅ (Dashboard Overview){% endblock %}
+
+{% block content %}
+<!-- KPI Stats Cards -->
+<div class="stats-grid">
+  <div class="stat-card blue">
+    <div class="stat-label">👥 អតិថិជនសរុប (Customers)</div>
+    <div class="stat-value">{{ "{:,}".format(stats.total_customers) }} នាក់</div>
+    <div class="stat-sub">សកម្ម: {{ "{:,}".format(stats.active_customers) }} | អសកម្ម: {{ "{:,}".format(stats.total_customers - stats.active_customers) }}</div>
+  </div>
+
+  <div class="stat-card red">
+    <div class="stat-label">⚠️ វិក័យបត្រមិនទាន់បង់ (Unpaid)</div>
+    <div class="stat-value">{{ "{:,}".format(stats.unpaid_count) }} ច្បាប់</div>
+    <div class="stat-sub">ទឹកប្រាក់ជំពាក់: {{ "{:,.0f}".format(stats.unpaid_amount) }} ៛</div>
+  </div>
+
+  <div class="stat-card emerald">
+    <div class="stat-label">💰 ចំណូលប្រមូលបាន (Revenue)</div>
+    <div class="stat-value">{{ "{:,.0f}".format(stats.paid_revenue) }} ៛</div>
+    <div class="stat-sub">វិក័យបត្រដែលបានទូទាត់រួច</div>
+  </div>
+
+  <div class="stat-card amber">
+    <div class="stat-label">⚡ ថាមពលប្រើប្រាស់សរុប (Usage)</div>
+    <div class="stat-value">{{ "{:,.1f}".format(stats.total_kwh) }} kWh</div>
+    <div class="stat-sub">គិតជា គីឡូវ៉ាត់ម៉ោង</div>
+  </div>
+</div>
+
+<!-- Tariff Information Banner -->
+<div class="info-banner">
+  <div class="info-banner-icon">💡</div>
+  <div class="info-banner-content">
+    <h4>អត្រាតម្លៃភ្លើងតាមកាំ (Electricity Tariff Structure):</h4>
+    <p>• កាំទី ១ (១ ដល់ ៥០ kWh) = <strong>៤០០ រៀល/kWh</strong> &nbsp;|&nbsp; • កាំទី ២ (លើសពី ៥០ kWh) = <strong>៦០០ រៀល/kWh</strong> &nbsp;|&nbsp; • គណនាស្វ័យប្រវត្តិតាមរូបមន្ត</p>
+  </div>
+</div>
+
+<!-- Recent Invoices Table -->
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">🧾 វិក័យបត្រចុងក្រោយ (Recent Invoices)</div>
+    <a href="{{ url_for('billing') }}" class="btn btn-light btn-sm">មើលវិក័យបត្រទាំងអស់ ➔</a>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>លេខវិក័យបត្រ</th>
+          <th>ឈ្មោះអតិថិជន</th>
+          <th>ខែគិតលុយ</th>
+          <th>ប្រើប្រាស់</th>
+          <th>ទឹកប្រាក់សរុប</th>
+          <th>ស្ថានភាព</th>
+          <th style="text-align: right;">សកម្មភាព</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in recent_invoices %}
+        <tr>
+          <td><strong>INV-{{ "%05d" % inv.invoice_id }}</strong></td>
+          <td>{{ inv.customer_name }}</td>
+          <td>{{ inv.billing_month }}</td>
+          <td>{{ "%.1f" % inv.usage_kwh }} kWh</td>
+          <td><strong>{{ "{:,.0f}".format(inv.total_amount) }} ៛</strong></td>
+          <td>
+            {% if inv.is_paid %}
+              <span class="badge badge-success">✔ បង់រួច (Paid)</span>
+            {% else %}
+              <span class="badge badge-danger">✖ មិនទាន់បង់</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            {% if not inv.is_paid %}
+              <button class="btn btn-success btn-sm" onclick="payInvoice({{ inv.invoice_id }}, '{{ inv.customer_name }}', {{ inv.total_amount }})">💳 បង់</button>
+            {% endif %}
+            <a href="{{ url_for('print_invoice', invoice_id=inv.invoice_id) }}" target="_blank" class="btn btn-light btn-sm">🖨️ បោះពុម្ព</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">មិនទាន់មានទិន្នន័យវិក័យបត្រនៅឡើយទេ</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

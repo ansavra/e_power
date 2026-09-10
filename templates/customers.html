@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}គ្រប់គ្រងអតិថិជន - E-POWER{% endblock %}
+{% block header_title %}👥 គ្រប់គ្រងព័ត៌មានអតិថិជន (Customer Management){% endblock %}
+
+{% block content %}
+<div class="panel">
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <form method="GET" action="{{ url_for('customers') }}" class="toolbar-search">
+      <input type="text" name="search" value="{{ search }}" class="input-text" placeholder="ស្វែងរកតាមលេខកូដ, ឈ្មោះ, ទូរស័ព្ទ ឬអាសយដ្ឋាន...">
+      <input type="hidden" name="page_size" value="{{ page_size }}">
+      <button type="submit" class="btn btn-primary">ស្វែងរក</button>
+      {% if search %}
+        <a href="{{ url_for('customers', page_size=page_size) }}" class="btn btn-light">សម្អាត</a>
+      {% endif %}
+    </form>
+
+    <button class="btn btn-success" onclick="openNewCustomerModal()">+ បន្ថែមអតិថិជនថ្មី</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width: 110px;">លេខកូដ (Code)</th>
+          <th>ឈ្មោះអតិថិជន (Customer Name)</th>
+          <th style="width: 130px;">លេខទូរស័ព្ទ</th>
+          <th>អាសយដ្ឋាន ឬលេខបង្គោលភ្លើង</th>
+          <th style="width: 130px;">ស្ថានភាព</th>
+          <th style="width: 120px;">កាលបរិច្ឆេទ</th>
+          <th style="text-align: right; width: 140px;">សកម្មភាព</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td>
+            <span class="code-badge">{{ c.customer_code }}</span>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">#{{ c.customer_id }}</div>
+          </td>
+          <td>
+            <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">
+              {{ c.title }} {{ c.full_name }}
+            </div>
+            {% if c.last_name_en or c.first_name_en %}
+              <div style="font-size: 0.82rem; color: var(--text-muted);">
+                {{ c.last_name_en }} {{ c.first_name_en }}
+              </div>
+            {% endif %}
+          </td>
+          <td>
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600;">{{ c.phone_number }}</span>
+          </td>
+          <td style="font-size: 0.88rem; max-width: 300px;">
+            {{ c.address }}
+            {% if c.pole_no %}
+              <span style="display: inline-block; background: #e0f2fe; color: #0369a1; padding: 1px 6px; border-radius: 4px; font-size: 0.75rem; margin-left: 4px; font-weight: 600;">
+                ⚡ {{ c.pole_no }}
+              </span>
+            {% endif %}
+          </td>
+          <td>
+            {% if c.status %}
+              <span class="badge badge-success">សកម្ម (Active)</span>
+            {% else %}
+              <span class="badge badge-muted">អសកម្ម (Inactive)</span>
+            {% endif %}
+          </td>
+          <td style="font-size: 0.85rem; font-family: 'Inter', sans-serif; color: var(--text-muted);">
+            {{ c.created_at }}
+          </td>
+          <td style="text-align: right; white-space: nowrap;">
+            <button class="btn btn-light btn-sm" onclick="editCustomerById({{ c.customer_id }})" title="កែប្រែ">✏️ កែប្រែ</button>
+            <button class="btn btn-danger btn-sm" onclick='deleteCustomer({{ c.customer_id }}, {{ (c.title ~ " " ~ c.full_name) | tojson }})' title="លុប">🗑️</button>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 36px;">
+            <div style="font-size: 1.5rem; margin-bottom: 6px;">🔍</div>
+            រកមិនឃើញទិន្នន័យអតិថិជនឡើយ
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination Controls -->
+  <div class="pagination-wrapper">
+    <div style="font-size: 0.88rem; color: var(--text-muted);">
+      ទំព័រ <strong>{{ page }}</strong> នៃ <strong>{{ total_pages }}</strong> (សរុប {{ "{:,}".format(total_records) }} នាក់)
+    </div>
+
+    <div class="pagination-controls">
+      {% if page > 1 %}
+        <a href="{{ url_for('customers', page=page-1, page_size=page_size, search=search) }}" class="btn btn-light btn-sm">◀ មុន (Prev)</a>
+      {% else %}
+        <button class="btn btn-light btn-sm" disabled>◀ មុន</button>
+      {% endif %}
+
+      {% if page < total_pages %}
+        <a href="{{ url_for('customers', page=page+1, page_size=page_size, search=search) }}" class="btn btn-primary btn-sm">បន្ទាប់ (Next) ▶</a>
+      {% else %}
+        <button class="btn btn-primary btn-sm" disabled>បន្ទាប់ ▶</button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Customer Modal (Exact Template Replica) -->
+<div class="modal-overlay" id="customerModal">
+  <div class="modal-card" style="max-width: 920px; width: 96%; max-height: 94vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; border: 2px solid #2563eb; border-radius: 8px;">
+    
+    <!-- Modal Window Header Bar (Blue) -->
+    <div style="background-color: #2563eb; color: #ffffff; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+      <div style="font-weight: 700; font-size: 1.05rem;" id="modalTitle">បន្ថែមអតិថិជន</div>
+      <button type="button" style="background: none; border: none; color: #ffffff; font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 0 4px;" onclick="closeCustomerModal()" title="បិទ">✕</button>
+    </div>
+
+    <!-- Tabs Header -->
+    <div style="display: flex; background-color: #e2e8f0; padding: 6px 14px 0 14px; border-bottom: 1px solid #cbd5e1; gap: 4px;">
+      <button type="button" class="tab-btn active" id="tabBtnGen" onclick="switchCustomerTab('gen')" style="padding: 8px 18px; font-weight: 700; font-family: inherit; font-size: 0.88rem; border: 1px solid #cbd5e1; border-bottom: none; background: #ffffff; border-top: 3px solid #2563eb; border-radius: 4px 4px 0 0; cursor: pointer; color: #0f172a;">
+        ព័ត៌មានទូទៅ
+      </button>
+      <button type="button" class="tab-btn" id="tabBtnUsage" onclick="switchCustomerTab('usage')" style="padding: 8px 18px; font-weight: 600; font-family: inherit; font-size: 0.88rem; border: 1px solid transparent; border-bottom: none; background: transparent; cursor: pointer; color: #64748b; border-radius: 4px 4px 0 0;">
+        ព័ត៌មានការប្រើប្រាស់
+      </button>
+    </div>
+
+    <!-- Form Container -->
+    <form id="customerForm" style="display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; background-color: #ffffff;">
+      <input type="hidden" id="txtCustId">
+      <input type="hidden" id="txtPhotoData">
+
+      <div style="padding: 20px 24px; overflow-y: auto; flex-grow: 1; max-height: 72vh;">
+        
+        <!-- TAB 1: ព័ត៌មានទូទៅ -->
+        <div id="tabContentGen">
+          <!-- 3 Columns: Col 1 (Left), Col 2 (Middle), Col 3 (Photo) -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 140px; gap: 20px; align-items: start;">
+            
+            <!-- Column 1 (Left) -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- ងារ* -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">ងារ * :</label>
+                <select id="cboTitle" class="select-box" style="padding: 5px 8px; font-size: 0.86rem;">
+                  <option value="លោក" selected>លោក</option>
+                  <option value="លោកស្រី">លោកស្រី</option>
+                  <option value="អ្នកនាង">អ្នកនាង</option>
+                  <option value="កញ្ញា">កញ្ញា</option>
+                  <option value="ឯកឧត្តម">ឯកឧត្តម</option>
+                  <option value="លោកជំទាវ">លោកជំទាវ</option>
+                </select>
+              </div>
+
+              <!-- គោត្តនាម* -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">គោត្តនាម * :</label>
+                <input type="text" id="txtLastName" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;" required placeholder="ឧ. សុខ">
+              </div>
+
+              <!-- នាម -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: var(--text-main);">នាម :</label>
+                <input type="text" id="txtFirstName" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;" placeholder="ឧ. ចាន់ដារ៉ា">
+              </div>
+
+              <!-- ថ្ងៃខែឆ្នាំកំណើត -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: var(--text-main);">ថ្ងៃខែឆ្នាំកំណើត :</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="chkEnableDob" onchange="toggleDobInput(this.checked)" title="បើក/បិទ ថ្ងៃខែឆ្នាំកំណើត" style="width: 16px; height: 16px; cursor: pointer;">
+                  <div style="position: relative; flex-grow: 1; display: flex; align-items: center;">
+                    <input type="text" id="txtDob" class="input-text" 
+                           placeholder="ថ្ងៃ/ខែ/ឆ្នាំ (ឧ. 15/08/1990)" 
+                           maxlength="10"
+                           oninput="onDobTextInput(event)"
+                           style="padding: 5px 34px 5px 8px; font-size: 0.86rem; width: 100%;">
+                    <button type="button" id="btnDobPicker" onclick="openDobPicker()" 
+                            title="ជ្រើសរើសពីប្រតិទិន (Calendar)"
+                            style="position: absolute; right: 4px; background: none; border: none; cursor: pointer; padding: 2px 4px; font-size: 1.05rem; line-height: 1; display: flex; align-items: center; color: #475569;">
+                      📅
+                    </button>
+                    <input type="date" id="pickerDob" onchange="onDobPickerChange(this.value)" style="position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;" tabindex="-1">
+                  </div>
+                </div>
+              </div>
+
+              <!-- កន្លែងកំណើត -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: var(--text-main);">កន្លែងកំណើត :</label>
+                <input type="text" id="txtPob" class="input-text" list="dlProvince" style="padding: 5px 8px; font-size: 0.86rem;" placeholder="ខេត្ត/រាជធានី">
+              </div>
+
+              <!-- ប្រភេទអត្តសញ្ញាណ -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: var(--text-main);">ប្រភេទអត្តសញ្ញាណ :</label>
+                <select id="cboIdType" class="select-box" style="padding: 5px 8px; font-size: 0.86rem;">
+                  <option value="អត្តសញ្ញាណប័ណ្ណ" selected>អត្តសញ្ញាណប័ណ្ណ</option>
+                  <option value="លិខិតឆ្លងដែន">លិខិតឆ្លងដែន</option>
+                  <option value="សៀវភៅគ្រួសារ">សៀវភៅគ្រួសារ</option>
+                  <option value="សៀវភៅស្នាក់នៅ">សៀវភៅស្នាក់នៅ</option>
+                  <option value="ផ្សេងៗ">ផ្សេងៗ</option>
+                </select>
+              </div>
+
+              <!-- អត្តសញ្ញាណ* -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">អត្តសញ្ញាណ * :</label>
+                <input type="text" id="txtIdNumber" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;" placeholder="លេខអត្តសញ្ញាណ">
+              </div>
+
+              <!-- អ្នកតំណាង -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: var(--text-main);">អ្នកតំណាង :</label>
+                <input type="text" id="txtRepresentative" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;">
+              </div>
+            </div>
+
+            <!-- Column 2 (Middle) -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- លេខកូដ* -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">លេខកូដ * :</label>
+                <input type="text" id="txtCustomerCode" class="input-text" style="padding: 5px 8px; font-size: 0.86rem; background: #f8fafc; font-weight: 700; color: #1d4ed8;" required placeholder="004158">
+              </div>
+
+              <!-- គោត្តនាមឡាតាំង -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: var(--text-main);">គោត្តនាមឡាតាំង :</label>
+                <input type="text" id="txtLastNameEn" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;" placeholder="Sok">
+              </div>
+
+              <!-- នាមឡាតាំង -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: var(--text-main);">នាមឡាតាំង :</label>
+                <input type="text" id="txtFirstNameEn" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;" placeholder="Chandara">
+              </div>
+
+              <!-- ភេទ * -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">ភេទ * :</label>
+                <select id="cboGender" class="select-box" style="padding: 5px 8px; font-size: 0.86rem;">
+                  <option value="ប្រុស" selected>ប្រុស</option>
+                  <option value="ស្រី">ស្រី</option>
+                </select>
+              </div>
+
+              <!-- មុខរបរ -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: var(--text-main);">មុខរបរ :</label>
+                <input type="text" id="txtOccupation" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;">
+              </div>
+
+              <!-- ចំនួនគ្រួសារ* -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">ចំនួនគ្រួសារ * :</label>
+                <input type="number" id="numFamilyMembers" min="1" max="99" value="1" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;">
+              </div>
+
+              <!-- ប្រភេទអតិថិជន* -->
+              <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">ប្រភេទអតិថិជន * :</label>
+                <select id="cboCustomerType" class="select-box" style="padding: 5px 8px; font-size: 0.86rem;">
+                  <option value="បុគ្គលមិនជាប់អាករ" selected>បុគ្គលមិនជាប់អាករ</option>
+                  <option value="បុគ្គលជាប់អាករ">បុគ្គលជាប់អាករ</option>
+                  <option value="អាជីវកម្ម/សហគ្រាស">អាជីវកម្ម/សហគ្រាស</option>
+                  <option value="រដ្ឋបាល/ស្ថាប័នរដ្ឋ">រដ្ឋបាល/ស្ថាប័នរដ្ឋ</option>
+                </select>
+              </div>
+
+              <!-- គ្រួសារក្រីក្រ Checkbox -->
+              <div style="display: flex; align-items: center; gap: 8px; margin-left: 110px; padding-top: 4px;">
+                <input type="checkbox" id="chkIsPoorFamily" style="width: 16px; height: 16px; cursor: pointer;">
+                <label for="chkIsPoorFamily" style="font-size: 0.88rem; cursor: pointer;">គ្រួសារក្រីក្រ</label>
+              </div>
+            </div>
+
+            <!-- Column 3 (Right: Photo Frame) -->
+            <div style="display: flex; flex-direction: column; align-items: center;">
+              <div id="photoPreview" style="width: 130px; height: 160px; border: 1px solid #cbd5e1; background-color: #f8fafc; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);">
+                <span style="font-size: 2.8rem; color: #cbd5e1;">👤</span>
+              </div>
+              <button type="button" class="btn btn-light btn-sm" style="margin-top: 8px; width: 110px; font-size: 0.85rem; font-weight: 600;" onclick="document.getElementById('filePhoto').click()">
+                រូបថត
+              </button>
+              <input type="file" id="filePhoto" accept="image/*" style="display: none;" onchange="handlePhotoUpload(event)">
+            </div>
+          </div>
+
+          <!-- Section 2: Contact Address (អាសយដ្ឋានទំនាក់ទំនង) -->
+          <div style="margin-top: 20px; border-top: 1px solid #cbd5e1; padding-top: 14px;">
+            <div style="font-weight: 700; font-size: 0.95rem; color: #0f172a; margin-bottom: 10px;">អាសយដ្ឋានទំនាក់ទំនង</div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <!-- Address Left Column -->
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                  <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">លេខទូរស័ព្ទ * :</label>
+                  <input type="text" id="txtPhone" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;" required placeholder="012 345 678">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                  <label style="font-size: 0.86rem; color: var(--text-main);">លេខគណនី :</label>
+                  <input type="text" id="txtAccountNumber" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;" placeholder="ACC-...">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                  <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">ខេត្ត/រាជធានី * :</label>
+                  <input type="text" id="cboProvince" class="input-text" list="dlProvince" style="padding: 5px 8px; font-size: 0.86rem;" value="កណ្តាល" oninput="updateComposedAddress()">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                  <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">ស្រុក/ក្រុង * :</label>
+                  <input type="text" id="cboDistrict" class="input-text" list="dlDistrict" style="padding: 5px 8px; font-size: 0.86rem;" value="មុខកំពូល" oninput="updateComposedAddress()">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                  <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">ឃុំ/សង្កាត់ * :</label>
+                  <input type="text" id="cboCommune" class="input-text" list="dlCommune" style="padding: 5px 8px; font-size: 0.86rem;" value="ឫស្សីជ្រោយ" oninput="updateComposedAddress()">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                  <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">ភូមិ/ក្រុម * :</label>
+                  <input type="text" id="cboVillage" class="input-text" list="dlVillage" style="padding: 5px 8px; font-size: 0.86rem;" value="ឫស្សីជ្រោយ" oninput="updateComposedAddress()">
+                </div>
+              </div>
+
+              <!-- Address Right Column -->
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                  <label style="font-size: 0.86rem; color: #b91c1c; font-weight: 600;">តំបន់ * :</label>
+                  <input type="text" id="cboZone" class="input-text" list="dlZone" style="padding: 5px 8px; font-size: 0.86rem;" value="តំបន់ ១">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                  <label style="font-size: 0.86rem; color: var(--text-main);">ផ្ទះលេខ :</label>
+                  <input type="text" id="txtHouseNo" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;" oninput="updateComposedAddress()">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: center;">
+                  <label style="font-size: 0.86rem; color: var(--text-main);">ផ្លូវលេខ :</label>
+                  <input type="text" id="txtStreetNo" class="input-text" style="padding: 5px 8px; font-size: 0.86rem;" oninput="updateComposedAddress()">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 110px 1fr; align-items: start;">
+                  <label style="font-size: 0.86rem; color: var(--text-main); padding-top: 6px;">អាសយដ្ឋាន :</label>
+                  <textarea id="txtAddress" class="input-text" rows="3" style="padding: 5px 8px; font-size: 0.86rem; resize: vertical;" placeholder="អាសយដ្ឋានពេញលេញ ឬទីតាំងបង្គោលភ្លើង..."></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: ព័ត៌មានការប្រើប្រាស់ -->
+        <div id="tabContentUsage" style="display: none;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: grid; grid-template-columns: 150px 1fr; align-items: center;">
+                <label style="font-size: 0.88rem; font-weight: 600;">ប្រភេទតំណភ្ជាប់ (Phase) :</label>
+                <select id="cboPhase" class="select-box" style="padding: 6px 10px;">
+                  <option value="1-Phase (220V)" selected>1-Phase (220V - លំនៅឋាន)</option>
+                  <option value="3-Phase (380V)">3-Phase (380V - ពាណិជ្ជកម្ម)</option>
+                </select>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 150px 1fr; align-items: center;">
+                <label style="font-size: 0.88rem; font-weight: 600;">លេខបង្គោលភ្លើង :</label>
+                <input type="text" id="txtPoleNo" class="input-text" placeholder="ឧ. BP-012" oninput="updateComposedAddress()">
+              </div>
+
+              <div style="display: grid; grid-template-columns: 150px 1fr; align-items: center;">
+                <label style="font-size: 0.88rem; font-weight: 600;">លេខប្រអប់កុងទ័រ :</label>
+                <input type="text" id="txtBoxNo" class="input-text" placeholder="ឧ. MB-04">
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: grid; grid-template-columns: 150px 1fr; align-items: center;">
+                <label style="font-size: 0.88rem; font-weight: 600;">ទំហំឌីសង់ទ័រ (Breaker) :</label>
+                <select id="cboBreaker" class="select-box" style="padding: 6px 10px;">
+                  <option value="10A">10A</option>
+                  <option value="16A">16A</option>
+                  <option value="20A" selected>20A</option>
+                  <option value="32A">32A</option>
+                  <option value="40A">40A</option>
+                  <option value="63A">63A</option>
+                </select>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 150px 1fr; align-items: center;">
+                <label style="font-size: 0.88rem; font-weight: 600;">កាំតម្លៃអគ្គិសនី :</label>
+                <select id="cboTariffType" class="select-box" style="padding: 6px 10px;">
+                  <option value="tiered" selected>កាំតម្លៃលំនៅឋាន (1-50kWh=400៛, >50kWh=600៛)</option>
+                  <option value="flat">តម្លៃថេរ (500៛/kWh)</option>
+                  <option value="commercial">ពាណិជ្ជកម្ម (750៛/kWh)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer Action Buttons -->
+      <div style="background-color: #f1f5f9; border-top: 1px solid #cbd5e1; padding: 10px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="submit" class="btn btn-primary" style="padding: 8px 24px; font-size: 0.92rem; font-weight: 700;">រក្សាទុក</button>
+        <button type="button" class="btn btn-light" style="padding: 8px 24px; font-size: 0.92rem; font-weight: 600;" onclick="closeCustomerModal()">បិទ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Datalists for Easy Selection & Free-Typing -->
+<datalist id="dlProvince">
+  <option value="ភ្នំពេញ">
+  <option value="កណ្តាល">
+  <option value="សៀមរាប">
+  <option value="បាត់ដំបង">
+  <option value="ព្រះសីហនុ">
+  <option value="កំពង់ចាម">
+  <option value="កំពង់ឆ្នាំង">
+  <option value="កំពង់ស្ពឺ">
+  <option value="កំពង់ធំ">
+  <option value="កំពត">
+  <option value="កែប">
+  <option value="កោះកុង">
+  <option value="ក្រចេះ">
+  <option value="មណ្ឌលគិរី">
+  <option value="ឧត្តរមានជ័យ">
+  <option value="ប៉ៃលិន">
+  <option value="ព្រះវិហារ">
+  <option value="ព្រៃវែង">
+  <option value="ពោធិ៍សាត់">
+  <option value="រតនគិរី">
+  <option value="ស្ទឹងត្រែង">
+  <option value="ស្វាយរៀង">
+  <option value="តាកែវ">
+  <option value="ត្បូងឃ្មុំ">
+  <option value="បន្ទាយមានជ័យ">
+</datalist>
+
+<datalist id="dlDistrict">
+  <option value="មុខកំពូល">
+  <option value="ដូនពេញ">
+  <option value="ទួលគោក">
+  <option value="ច្បារអំពៅ">
+  <option value="មានជ័យ">
+  <option value="ពោធិ៍សែនជ័យ">
+  <option value="ឫស្សីកែវ">
+  <option value="សែនសុខ">
+  <option value="ចង្ការមន">
+  <option value="កំបូល">
+  <option value="ព្រែកព្នៅ">
+  <option value="តាខ្មៅ">
+</datalist>
+
+<datalist id="dlCommune">
+  <option value="ឫស្សីជ្រោយ">
+  <option value="បឹងកក់ ១">
+  <option value="ផ្សារថ្មី">
+  <option value="ស្ទឹងមានជ័យ">
+  <option value="បឹងទំពុន">
+  <option value="កាកាប">
+  <option value="ចោមចៅ">
+  <option value="ទួលសង្កែ">
+  <option value="ដង្កោ">
+</datalist>
+
+<datalist id="dlVillage">
+  <option value="ឫស្សីជ្រោយ">
+  <option value="ភូមិ ១">
+  <option value="ភូមិ ២">
+  <option value="ភូមិ ៣">
+  <option value="ភូមិ ៤">
+  <option value="ភូមិ ៥">
+</datalist>
+
+<datalist id="dlZone">
+  <option value="តំបន់ ១">
+  <option value="តំបន់ ២">
+  <option value="តំបន់ ៣">
+  <option value="តំបន់ ៤">
+</datalist>
+{% endblock %}

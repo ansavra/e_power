@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}E-POWER - ប្រព័ន្ធគ្រប់គ្រងការប្រើប្រាស់អគ្គិសនី{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Kantumruy+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Siemreap&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ now.timestamp() }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-title">
+          <span>⚡</span> E-POWER
+        </div>
+        <div class="brand-subtitle">ប្រព័ន្ធគ្រប់គ្រងការប្រើប្រាស់អគ្គិសនី</div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+          <span class="nav-icon">📊</span>
+          <span>ផ្ទាំងគ្រប់គ្រង (Dashboard)</span>
+        </a>
+        <a href="{{ url_for('customers') }}" class="nav-link {% if active_page == 'customers' %}active{% endif %}">
+          <span class="nav-icon">👥</span>
+          <span>គ្រប់គ្រងអតិថិជន</span>
+        </a>
+        <a href="{{ url_for('meter_reading') }}" class="nav-link {% if active_page == 'meter-reading' %}active{% endif %}">
+          <span class="nav-icon">⚡</span>
+          <span>កត់ត្រាលេខកុងទ័រ</span>
+        </a>
+        <a href="{{ url_for('billing') }}" class="nav-link {% if active_page == 'billing' %}active{% endif %}">
+          <span class="nav-icon">🧾</span>
+          <span>វិក័យបត្រ & ទូទាត់</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="db-badge">
+          <span class="dot"></span>
+          <span>{% if is_sql_server %}SQL Server Connected{% else %}SQLite Local DB{% endif %}</span>
+        </div>
+        <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">Python Web (Flask) | v1.0</div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="main-wrapper">
+      <header class="top-header">
+        <div class="header-title">
+          <h1>{% block header_title %}📊 ផ្ទាំងគ្រប់គ្រងទូទៅ{% endblock %}</h1>
+        </div>
+        <div class="header-meta">
+          <span>📅 {{ now.strftime('%A, %d %B %Y') }}</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <div class="toast-container"></div>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v={{ now.timestamp() }}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

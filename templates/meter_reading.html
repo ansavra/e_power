@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}កត់ត្រាលេខកុងទ័រ - E-POWER{% endblock %}
+{% block header_title %}⚡ កត់ត្រាលេខកុងទ័រ & គណនាថ្លៃ (Meter Reading & Calculation){% endblock %}
+
+{% block content %}
+<div class="two-col-grid">
+  <!-- Left Column: Input Form & Realtime Calculation -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📝 បញ្ចូលទិន្នន័យកុងទ័រប្រចាំខែ</div>
+    </div>
+
+    <form id="meterReadingForm">
+      <!-- 1. Customer Select -->
+      <div class="form-group">
+        <label class="form-label">ជ្រើសរើសអតិថិជន (Select Customer) *</label>
+        <select id="cboCustomer" class="select-box" required>
+          <option value="">-- សូមជ្រើសរើសអតិថិជន --</option>
+          {% for c in active_customers %}
+            <option value="{{ c.customer_id }}">{{ c.display }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 2. Billing Month -->
+      <div class="form-group">
+        <label class="form-label">ខែ/ឆ្នាំ គិតលុយ (Billing Month) *</label>
+        <input type="month" id="txtBillingMonth" class="input-text" value="{{ current_month }}" required>
+      </div>
+
+      <!-- 3. Previous Reading (Auto Loaded) -->
+      <div class="form-group">
+        <label class="form-label" style="color: var(--text-muted);">លេខកុងទ័រចាស់ (Previous Reading) [ស្វ័យប្រវត្តិ]</label>
+        <input type="text" id="txtPreviousReading" class="input-text" value="0.00" readonly style="background-color: #f1f5f9; color: var(--text-muted); font-weight: 600;">
+      </div>
+
+      <!-- 4. Current Reading -->
+      <div class="form-group">
+        <label class="form-label" style="color: var(--primary);">លេខកុងទ័រថ្មី (Current Reading) *</label>
+        <input type="number" step="0.01" id="txtCurrentReading" class="input-text" placeholder="ឧ. 150.00" required style="font-size: 1.1rem; font-weight: 700;">
+      </div>
+
+      <!-- Pricing Policy (ជម្រើសតម្លៃភ្លើង) -->
+      <div class="form-group">
+        <label class="form-label" style="font-weight: 700; color: #0f172a; margin-bottom: 8px;">
+          ជម្រើសតម្លៃភ្លើង (Pricing Policy):
+        </label>
+
+        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+          
+          <!-- Option 1: តាមកំ -->
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem; cursor: pointer; color: #1e293b; user-select: none;">
+            <input type="radio" name="rate_type" id="rbTiered" value="tiered" style="width: 18px; height: 18px; cursor: pointer;">
+            <span>តាមកំ: 0-50 kWh = <strong>៤០០៛</strong> | &gt;50 kWh = <strong>៦០០៛</strong></span>
+          </label>
+
+          <!-- Option 2: តម្លៃថេរ (Flat Rate) -->
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem; cursor: pointer; color: #1e293b; user-select: none;">
+              <input type="radio" name="rate_type" id="rbFlat" value="flat" checked style="width: 18px; height: 18px; cursor: pointer;">
+              <span>តម្លៃថេរ (Flat Rate):</span>
+            </label>
+            <input type="number" id="numFlatRate" value="800" min="1" step="10" class="input-text" style="width: 85px; padding: 4px 6px; font-size: 1rem; font-weight: 700; text-align: center; color: #0f172a; background: #ffffff; border: 1px solid #94a3b8; border-radius: 6px;">
+            <span style="font-size: 0.95rem; font-weight: 600; color: #334155;">៛/kWh</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Realtime Calculation Box -->
+      <div class="calc-preview-box">
+        <div id="lblUsage" style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
+          ⚡ ថាមពលប្រើប្រាស់: 0.00 kWh
+        </div>
+        <div class="calc-row" id="lblTier1">
+          • កាំទី ១ (1 - 50 kWh): 0 kWh × 400៛ = 0 ៛
+        </div>
+        <div class="calc-row" id="lblTier2">
+          • កាំទី ២ (> 50 kWh): 0 kWh × 600៛ = 0 ៛
+        </div>
+        <div class="calc-total-row">
+          <span style="font-weight: 700;">ទឹកប្រាក់សរុបត្រូវបង់:</span>
+          <span class="calc-total-amount" id="lblTotal">0 ៛</span>
+        </div>
+        <div id="lblWarning" style="color: var(--danger); font-size: 0.82rem; margin-top: 6px; font-weight: 600;"></div>
+      </div>
+
+      <button type="submit" id="btnSaveReading" class="btn btn-primary" style="width: 100%; padding: 12px;" disabled>
+        💾 កត់ត្រា & បង្កើតវិក័យបត្រ
+      </button>
+    </form>
+  </div>
+
+  <!-- Right Column: Recent Readings History Table -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📋 ប្រវត្តិនៃការកត់ត្រាកុងទ័រ (Recent Readings)</div>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>ឈ្មោះអតិថិជន</th>
+            <th>ខែគិតលុយ</th>
+            <th>កុងទ័រចាស់</th>
+            <th>កុងទ័រថ្មី</th>
+            <th>ប្រើប្រាស់</th>
+            <th>កាលបរិច្ឆេទ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent_readings %}
+          <tr>
+            <td>#{{ r.reading_id }}</td>
+            <td><strong>{{ r.customer_name }}</strong></td>
+            <td>{{ r.billing_month }}</td>
+            <td>{{ "%.1f" % r.previous_reading }}</td>
+            <td>{{ "%.1f" % r.current_reading }}</td>
+            <td><strong style="color: var(--primary);">{{ "%.1f" % r.usage_kwh }} kWh</strong></td>
+            <td style="font-size: 0.8rem; color: var(--text-muted);">{{ r.recorded_date }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">មិនទាន់មានទិន្នន័យកុងទ័រនៅឡើយទេ</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
