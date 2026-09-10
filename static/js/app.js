@@ -736,6 +736,135 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
       closeCustomerModal();
+      closeModal('modalAddUser');
+      closeModal('modalEditUser');
+      closeModal('modalResetPassword');
     }
   });
 });
+
+// --- User Management Functions (Admin) ---
+
+function openAddUserModal() {
+  const form = document.getElementById('formAddUser');
+  if (form) form.reset();
+  const modal = document.getElementById('modalAddUser');
+  if (modal) modal.style.display = 'flex';
+}
+
+function openEditUserModal(userId, fullName, role) {
+  document.getElementById('editUserId').value = userId;
+  document.getElementById('editFullName').value = fullName;
+  document.getElementById('editRole').value = role;
+  const modal = document.getElementById('modalEditUser');
+  if (modal) modal.style.display = 'flex';
+}
+
+function openResetPasswordModal(userId, username, fullName) {
+  document.getElementById('resetUserId').value = userId;
+  document.getElementById('resetNewPassword').value = '';
+  document.getElementById('resetUserPrompt').innerHTML = `កំពុងកំណត់ពាក្យសម្ងាត់ឡើងវិញសម្រាប់ <strong>${fullName}</strong> (<code>${username}</code>)`;
+  const modal = document.getElementById('modalResetPassword');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitAddUser(event) {
+  event.preventDefault();
+  const fullName = document.getElementById('addFullName').value.trim();
+  const username = document.getElementById('addUsername').value.trim();
+  const password = document.getElementById('addPassword').value;
+  const role = document.getElementById('addRole').value;
+
+  try {
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_name: fullName, username, password, role })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'បានបន្ថែមអ្នកប្រើប្រាស់ជោគជ័យ!', 'success');
+      closeModal('modalAddUser');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast(data.error || 'មានបញ្ហាក្នុងការបង្កើត!', 'danger');
+    }
+  } catch (err) {
+    showToast('បរាជ័យក្នុងការតភ្ជាប់: ' + err.message, 'danger');
+  }
+}
+
+async function submitEditUser(event) {
+  event.preventDefault();
+  const userId = document.getElementById('editUserId').value;
+  const fullName = document.getElementById('editFullName').value.trim();
+  const role = document.getElementById('editRole').value;
+
+  try {
+    const res = await fetch(`/api/users/${userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_name: fullName, role })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'បានកែប្រែព័ត៌មានជោគជ័យ!', 'success');
+      closeModal('modalEditUser');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast(data.error || 'មានបញ្ហាក្នុងការកែប្រែ!', 'danger');
+    }
+  } catch (err) {
+    showToast('បរាជ័យក្នុងការតភ្ជាប់: ' + err.message, 'danger');
+  }
+}
+
+async function submitResetPassword(event) {
+  event.preventDefault();
+  const userId = document.getElementById('resetUserId').value;
+  const newPassword = document.getElementById('resetNewPassword').value;
+
+  try {
+    const res = await fetch(`/api/users/${userId}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_password: newPassword })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'បានប្តូរពាក្យសម្ងាត់ជោគជ័យ!', 'success');
+      closeModal('modalResetPassword');
+    } else {
+      showToast(data.error || 'មានបញ្ហាក្នុងការប្តូរពាក្យសម្ងាត់!', 'danger');
+    }
+  } catch (err) {
+    showToast('បរាជ័យក្នុងការតភ្ជាប់: ' + err.message, 'danger');
+  }
+}
+
+async function deleteUser(userId, fullName) {
+  if (!confirm(`តើអ្នកប្រាកដជាចង់លុបអ្នកប្រើប្រាស់ "${fullName}" នេះចេញពីប្រព័ន្ធមែនទេ?\n(សកម្មភាពនេះមិនអាចត្រឡប់ក្រោយវិញបានទេ)`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/users/${userId}/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'បានលុបអ្នកប្រើប្រាស់ជោគជ័យ!', 'success');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast(data.error || 'មានបញ្ហាក្នុងការលុប!', 'danger');
+    }
+  } catch (err) {
+    showToast('បរាជ័យក្នុងការតភ្ជាប់: ' + err.message, 'danger');
+  }
+}

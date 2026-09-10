@@ -38,6 +38,12 @@
           <span class="nav-icon">🧾</span>
           <span>វិក័យបត្រ & ទូទាត់</span>
         </a>
+        {% if current_user and current_user.role == 'Admin' %}
+        <a href="{{ url_for('users_list') }}" class="nav-link {% if active_page == 'users' %}active{% endif %}">
+          <span class="nav-icon">🛡️</span>
+          <span>គ្រប់គ្រងអ្នកប្រើប្រាស់</span>
+        </a>
+        {% endif %}
       </nav>
 
       <div class="sidebar-footer">

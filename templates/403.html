@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}403 គ្មានសិទ្ធិអនុញ្ញាត - E-POWER{% endblock %}
+{% block header_title %}⚠️ គ្មានសិទ្ធិអនុញ្ញាត (403 Forbidden){% endblock %}
+
+{% block content %}
+<div class="panel" style="text-align: center; padding: 60px 20px;">
+  <div style="font-size: 4rem; margin-bottom: 16px;">🚫</div>
+  <h2 style="font-size: 1.5rem; color: #1e293b; margin-bottom: 8px;">គ្មានសិទ្ធិចូលប្រើប្រាស់ទំព័រនេះទេ</h2>
+  <p style="color: #64748b; max-width: 480px; margin: 0 auto 24px auto;">
+    ទំព័រនេះត្រូវបានកំណត់សម្រាប់តែ <strong>អ្នកគ្រប់គ្រងប្រព័ន្ធ (Admin)</strong> ប៉ុណ្ណោះ។ ប្រសិនបើលោកអ្នកត្រូវការសិទ្ធិ សូមទាក់ទង Admin។
+  </p>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+    <span>📊</span> ត្រឡប់ទៅកាន់ Dashboard
+  </a>
+</div>
+{% endblock %}

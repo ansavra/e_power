@@ -6,6 +6,7 @@ class WebAppTestCase(unittest.TestCase):
         self.client = app.test_client()
 
     def login_admin(self):
+        self.client.get('/logout')
         return self.client.post('/login', data={
             'username': 'admin',
             'password': 'admin123'
@@ -141,6 +142,74 @@ class WebAppTestCase(unittest.TestCase):
         self.assertIn('history-grid', data)
         self.assertIn('tear-off-badge', data)
         self.assertIn('VATIN', data)
+
+    def test_admin_users_page_requires_admin(self):
+        # 1. Unauthenticated gets redirected to /login
+        res1 = self.client.get('/users')
+        self.assertEqual(res1.status_code, 302)
+
+        # 2. Staff user gets 403
+        import uuid
+        staff_user = f"staff_{uuid.uuid4().hex[:6]}"
+        self.client.post('/register', data={
+            'full_name': 'បុគ្គលិក តេស្ត',
+            'username': staff_user,
+            'password': 'password123',
+            'confirm_password': 'password123'
+        }, follow_redirects=True)
+        res2 = self.client.get('/users')
+        self.assertEqual(res2.status_code, 403)
+
+        # 3. Admin gets 200
+        self.login_admin()
+        res3 = self.client.get('/users')
+        self.assertEqual(res3.status_code, 200)
+        self.assertIn('គ្រប់គ្រងអ្នកប្រើប្រាស់'.encode('utf-8'), res3.data)
+
+    def test_admin_manage_users_crud(self):
+        self.login_admin()
+        import uuid
+        uid_str = uuid.uuid4().hex[:6]
+        new_user = f"ops_{uid_str}"
+
+        # 1. Add user
+        res_add = self.client.post('/api/users', json={
+            'username': new_user,
+            'password': 'password123',
+            'full_name': 'អ្នកប្រតិបត្តិការ ថ្មី',
+            'role': 'Staff'
+        })
+        self.assertEqual(res_add.status_code, 200)
+        self.assertTrue(res_add.get_json()['success'])
+
+        # Find user ID
+        from services import UserService
+        all_users = UserService.get_all()
+        created_user = next((u for u in all_users if u['username'] == new_user), None)
+        self.assertIsNotNone(created_user)
+        target_id = created_user['user_id']
+
+        # 2. Update role to Accountant
+        res_role = self.client.post(f'/api/users/{target_id}/role', json={'role': 'Accountant'})
+        self.assertEqual(res_role.status_code, 200)
+        u_updated = UserService.get_by_id(target_id)
+        self.assertEqual(u_updated['role'], 'Accountant')
+
+        # 3. Reset password
+        res_pw = self.client.post(f'/api/users/{target_id}/reset-password', json={'new_password': 'newsecretpass'})
+        self.assertEqual(res_pw.status_code, 200)
+        auth_user, _ = UserService.authenticate(new_user, 'newsecretpass')
+        self.assertIsNotNone(auth_user)
+
+        # 4. Attempt to delete self (admin ID 1) -> must fail
+        res_del_self = self.client.post('/api/users/1/delete')
+        self.assertEqual(res_del_self.status_code, 400)
+        self.assertFalse(res_del_self.get_json()['success'])
+
+        # 5. Delete newly created user -> must succeed
+        res_del = self.client.post(f'/api/users/{target_id}/delete')
+        self.assertEqual(res_del.status_code, 200)
+        self.assertIsNone(UserService.get_by_id(target_id))
 
 if __name__ == '__main__':
     unittest.main()

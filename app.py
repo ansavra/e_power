@@ -61,6 +61,20 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("user_id"):
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "error": "សូមចូលគណនីជាមុនសិន (Unauthorized)!"}), 401
+            return redirect(url_for("login", next=request.path))
+        if session.get("role") != "Admin":
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "error": "សិទ្ធិមិនគ្រប់គ្រាន់! សម្រាប់តែ Admin ប៉ុណ្ណោះ (Forbidden)"}), 403
+            return render_template("403.html"), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
 # --- Auth Routes ---
 
 @app.route("/login", methods=["GET", "POST"])
@@ -135,6 +149,12 @@ def dashboard():
     stats = DashboardService.get_stats()
     recent_invoices = BillingService.get_invoices("All")[:8]
     return render_template("dashboard.html", stats=stats, recent_invoices=recent_invoices, active_page="dashboard")
+
+@app.route("/users")
+@admin_required
+def users_list():
+    users = UserService.get_all()
+    return render_template("users.html", users=users, active_page="users")
 
 @app.route("/customers")
 @login_required
@@ -362,6 +382,61 @@ def api_pay_invoice(invoice_id):
         "success": ok,
         "message": "បានទូទាត់ប្រាក់ជោគជ័យ!" if ok else "វិក័យបត្រនេះត្រូវបានទូទាត់រួចហើយ ឬរកមិនឃើញ"
     })
+
+# --- User Management API (Admin Only) ---
+
+@app.route("/api/users", methods=["POST"])
+@admin_required
+def api_add_user():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+    full_name = data.get("full_name", "").strip()
+    role = data.get("role", "Staff")
+    ok, msg = UserService.register(username, password, full_name, role)
+    if ok:
+        return jsonify({"success": True, "message": "បានបង្កើតអ្នកប្រើប្រាស់ថ្មីដោយជោគជ័យ!"})
+    return jsonify({"success": False, "error": msg}), 400
+
+@app.route("/api/users/<int:user_id>", methods=["POST", "PUT"])
+@admin_required
+def api_update_user(user_id):
+    data = request.get_json() or {}
+    full_name = data.get("full_name", "").strip()
+    role = data.get("role", "Staff")
+    ok, msg = UserService.update_user(user_id, full_name, role)
+    if ok:
+        return jsonify({"success": True, "message": msg})
+    return jsonify({"success": False, "error": msg}), 400
+
+@app.route("/api/users/<int:user_id>/role", methods=["POST"])
+@admin_required
+def api_update_user_role(user_id):
+    data = request.get_json() or {}
+    role = data.get("role", "")
+    ok, msg = UserService.update_role(user_id, role)
+    if ok:
+        return jsonify({"success": True, "message": msg})
+    return jsonify({"success": False, "error": msg}), 400
+
+@app.route("/api/users/<int:user_id>/reset-password", methods=["POST"])
+@admin_required
+def api_reset_user_password(user_id):
+    data = request.get_json() or {}
+    new_password = data.get("new_password", "")
+    ok, msg = UserService.reset_password(user_id, new_password)
+    if ok:
+        return jsonify({"success": True, "message": msg})
+    return jsonify({"success": False, "error": msg}), 400
+
+@app.route("/api/users/<int:user_id>/delete", methods=["POST", "DELETE"])
+@admin_required
+def api_delete_user(user_id):
+    current_admin_id = session.get("user_id")
+    ok, msg = UserService.delete(user_id, current_admin_id)
+    if ok:
+        return jsonify({"success": True, "message": msg})
+    return jsonify({"success": False, "error": msg}), 400
 
 if __name__ == "__main__":
     # Run on port 5050 to ensure no conflict

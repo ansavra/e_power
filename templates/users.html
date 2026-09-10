@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}គ្រប់គ្រងអ្នកប្រើប្រាស់ - E-POWER{% endblock %}
+{% block header_title %}🛡️ គ្រប់គ្រងអ្នកប្រើប្រាស់ (User Management){% endblock %}
+
+{% block content %}
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">👥 បញ្ជីគណនីអ្នកប្រើប្រាស់ក្នុងប្រព័ន្ធ (All System Users)</div>
+      <p style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">Admin អាចបង្កើតគណនី, កែប្រែតួនាទី, ប្តូរពាក្យសម្ងាត់ និងលុបគណនីបាន។</p>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="openAddUserModal()">
+        <span>➕</span> បន្ថែមអ្នកប្រើប្រាស់ថ្មី
+      </button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width: 70px;">ID</th>
+          <th>ឈ្មោះពេញ (Full Name)</th>
+          <th>ឈ្មោះគណនី (Username)</th>
+          <th style="width: 130px;">តួនាទី (Role)</th>
+          <th>កាលបរិច្ឆេទបង្កើត</th>
+          <th style="text-align: right; width: 260px;">សកម្មភាព (Actions)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><strong>#{{ u.user_id }}</strong></td>
+          <td>
+            <div style="font-weight: 600; color: #1e293b;">
+              👤 {{ u.full_name }}
+              {% if current_user and current_user.user_id == u.user_id %}
+              <span style="font-size: 0.72rem; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 10px; margin-left: 4px;">(គណនីរបស់អ្នក)</span>
+              {% endif %}
+            </div>
+          </td>
+          <td><code>{{ u.username }}</code></td>
+          <td>
+            {% if u.role == 'Admin' %}
+            <span class="badge" style="background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe;">🛡️ Admin</span>
+            {% elif u.role == 'Accountant' %}
+            <span class="badge badge-warning">💰 Accountant</span>
+            {% else %}
+            <span class="badge badge-info">👨‍💼 Staff</span>
+            {% endif %}
+          </td>
+          <td style="color: #64748b; font-size: 0.85rem;">{{ u.created_at }}</td>
+          <td style="text-align: right;">
+            <button class="btn btn-light btn-sm" onclick="openEditUserModal({{ u.user_id }}, '{{ u.full_name | escape }}', '{{ u.role }}')" title="កែប្រែព័ត៌មាន និងតួនាទី">
+              ✏️ កែប្រែ
+            </button>
+            <button class="btn btn-light btn-sm" onclick="openResetPasswordModal({{ u.user_id }}, '{{ u.username }}', '{{ u.full_name | escape }}')" title="កំណត់ពាក្យសម្ងាត់ឡើងវិញ">
+              🔑 លេខកូដ
+            </button>
+            {% if current_user and current_user.user_id != u.user_id %}
+            <button class="btn btn-danger btn-sm" onclick="deleteUser({{ u.user_id }}, '{{ u.full_name | escape }}')" title="លុបគណនី">
+              🗑️ លុប
+            </button>
+            {% else %}
+            <button class="btn btn-light btn-sm" disabled style="opacity: 0.5; cursor: not-allowed;" title="មិនអាចលុបគណនីដែលកំពុងប្រើប្រាស់បានទេ">
+              🔒 លុប
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal 1: Add User -->
+<div class="modal-backdrop" id="modalAddUser" style="display: none;">
+  <div class="modal-card" style="max-width: 480px;">
+    <div class="modal-header">
+      <h3>➕ បន្ថែមអ្នកប្រើប្រាស់ថ្មី</h3>
+      <button class="btn-close" onclick="closeModal('modalAddUser')">&times;</button>
+    </div>
+    <form id="formAddUser" onsubmit="submitAddUser(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="addFullName">ឈ្មោះពេញ (Full Name) <span style="color: red;">*</span></label>
+          <input type="text" id="addFullName" class="input-text" placeholder="ឧ. សុខ ចាន់ថន..." required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="addUsername">ឈ្មោះគណនី (Username) <span style="color: red;">*</span></label>
+          <input type="text" id="addUsername" class="input-text" placeholder="ឧ. chanthorn..." required pattern="[a-zA-Z0-9_\-\.]{3,30}">
+          <small style="color: #64748b; font-size: 0.75rem;">អក្សរឡាតាំងតូច និងលេខ (3-30 តួ)</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="addPassword">ពាក្យសម្ងាត់ (Password) <span style="color: red;">*</span></label>
+          <input type="password" id="addPassword" class="input-text" placeholder="យ៉ាងតិច ៤ តួអក្សរ..." required minlength="4">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="addRole">តួនាទី (Role)</label>
+          <select id="addRole" class="input-text">
+            <option value="Staff">👨‍💼 បុគ្គលិកទូទៅ (Staff)</option>
+            <option value="Accountant">💰 គណនេយ្យករ (Accountant)</option>
+            <option value="Admin">🛡️ អ្នកគ្រប់គ្រងប្រព័ន្ធ (Admin)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" onclick="closeModal('modalAddUser')">បោះបង់</button>
+        <button type="submit" class="btn btn-primary"><span>💾</span> រក្សាទុក</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 2: Edit User -->
+<div class="modal-backdrop" id="modalEditUser" style="display: none;">
+  <div class="modal-card" style="max-width: 480px;">
+    <div class="modal-header">
+      <h3>✏️ កែប្រែព័ត៌មាន & តួនាទី</h3>
+      <button class="btn-close" onclick="closeModal('modalEditUser')">&times;</button>
+    </div>
+    <form id="formEditUser" onsubmit="submitEditUser(event)">
+      <input type="hidden" id="editUserId">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="editFullName">ឈ្មោះពេញ (Full Name) <span style="color: red;">*</span></label>
+          <input type="text" id="editFullName" class="input-text" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="editRole">តួនាទី (Role)</label>
+          <select id="editRole" class="input-text">
+            <option value="Staff">👨‍💼 បុគ្គលិកទូទៅ (Staff)</option>
+            <option value="Accountant">💰 គណនេយ្យករ (Accountant)</option>
+            <option value="Admin">🛡️ អ្នកគ្រប់គ្រងប្រព័ន្ធ (Admin)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" onclick="closeModal('modalEditUser')">បោះបង់</button>
+        <button type="submit" class="btn btn-primary"><span>💾</span> រក្សាទុកការផ្លាស់ប្តូរ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 3: Reset Password -->
+<div class="modal-backdrop" id="modalResetPassword" style="display: none;">
+  <div class="modal-card" style="max-width: 440px;">
+    <div class="modal-header">
+      <h3>🔑 កំណត់ពាក្យសម្ងាត់ឡើងវិញ</h3>
+      <button class="btn-close" onclick="closeModal('modalResetPassword')">&times;</button>
+    </div>
+    <form id="formResetPassword" onsubmit="submitResetPassword(event)">
+      <input type="hidden" id="resetUserId">
+      <div class="modal-body">
+        <p id="resetUserPrompt" style="font-size: 0.9rem; color: #475569; margin-bottom: 16px;"></p>
+        <div class="form-group">
+          <label class="form-label" for="resetNewPassword">ពាក្យសម្ងាត់ថ្មី (New Password) <span style="color: red;">*</span></label>
+          <input type="password" id="resetNewPassword" class="input-text" placeholder="បញ្ចូលពាក្យសម្ងាត់ថ្មី (យ៉ាងតិច ៤ តួ)..." required minlength="4">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" onclick="closeModal('modalResetPassword')">បោះបង់</button>
+        <button type="submit" class="btn btn-primary"><span>🔑</span> ប្តូរពាក្យសម្ងាត់</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

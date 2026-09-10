@@ -897,3 +897,74 @@ class UserService:
                 "role": r["Role"] if hasattr(r, "keys") else r[3],
             }
         return None
+
+    @classmethod
+    def get_all(cls):
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT UserID, Username, FullName, Role, CreatedAt FROM Users ORDER BY UserID ASC")
+        rows = cur.fetchall()
+        conn.close()
+        users = []
+        for r in rows:
+            users.append({
+                "user_id": r["UserID"] if hasattr(r, "keys") else r[0],
+                "username": r["Username"] if hasattr(r, "keys") else r[1],
+                "full_name": r["FullName"] if hasattr(r, "keys") else r[2],
+                "role": r["Role"] if hasattr(r, "keys") else r[3],
+                "created_at": str(r["CreatedAt"] if hasattr(r, "keys") else r[4])[:19]
+            })
+        return users
+
+    @classmethod
+    def update_role(cls, user_id, new_role):
+        allowed_roles = ["Admin", "Staff", "Accountant"]
+        if new_role not in allowed_roles:
+            return False, "តួនាទីមិនត្រឹមត្រូវទេ!"
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE Users SET Role = ? WHERE UserID = ?", [new_role, user_id])
+        conn.commit()
+        conn.close()
+        return True, "បានកែប្រែតួនាទីដោយជោគជ័យ!"
+
+    @classmethod
+    def update_user(cls, user_id, full_name, role):
+        full_name = (full_name or "").strip()
+        if not full_name:
+            return False, "សូមបញ្ចូលឈ្មោះពេញ!"
+        allowed_roles = ["Admin", "Staff", "Accountant"]
+        if role not in allowed_roles:
+            role = "Staff"
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE Users SET FullName = ?, Role = ? WHERE UserID = ?", [full_name, role, user_id])
+        conn.commit()
+        conn.close()
+        return True, "បានកែប្រែព័ត៌មានដោយជោគជ័យ!"
+
+    @classmethod
+    def reset_password(cls, user_id, new_password):
+        if not new_password or len(new_password) < 4:
+            return False, "ពាក្យសម្ងាត់ថ្មីត្រូវមានយ៉ាងតិច ៤ តួអក្សរឡើងទៅ!"
+        pw_hash = generate_password_hash(new_password)
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE Users SET PasswordHash = ? WHERE UserID = ?", [pw_hash, user_id])
+        conn.commit()
+        conn.close()
+        return True, "បានកំណត់ពាក្យសម្ងាត់ថ្មីដោយជោគជ័យ!"
+
+    @classmethod
+    def delete(cls, user_id, current_admin_id):
+        if int(user_id) == int(current_admin_id):
+            return False, "លោកអ្នកមិនអាចលុបគណនីផ្ទាល់ខ្លួនដែលកំពុងប្រើប្រាស់បានទេ!"
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM Users WHERE UserID = ?", [user_id])
+        rows_affected = cur.rowcount
+        conn.commit()
+        conn.close()
+        if rows_affected > 0:
+            return True, "បានលុបអ្នកប្រើប្រាស់ដោយជោគជ័យ!"
+        return False, "រកមិនឃើញអ្នកប្រើប្រាស់ដែលត្រូវលុបទេ!"
