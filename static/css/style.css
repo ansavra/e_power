@@ -93,12 +93,12 @@ button, input, select, textarea {
 }
 
 .brand-logo-img {
-  width: 58px;
-  height: 58px;
+  width: 84px;
+  height: 84px;
   object-fit: contain;
   border-radius: 50%;
-  filter: drop-shadow(0 4px 10px rgba(37, 99, 235, 0.4));
-  margin-bottom: 8px;
+  filter: drop-shadow(0 6px 14px rgba(37, 99, 235, 0.45));
+  margin-bottom: 10px;
   transition: transform 0.25s ease;
 }
 
@@ -749,12 +749,12 @@ button, input, select, textarea {
 }
 
 .auth-logo-img {
-  width: 84px;
-  height: 84px;
+  width: 128px;
+  height: 128px;
   object-fit: contain;
   border-radius: 50%;
-  filter: drop-shadow(0 8px 20px rgba(37, 99, 235, 0.35));
-  margin-bottom: 10px;
+  filter: drop-shadow(0 10px 24px rgba(37, 99, 235, 0.4));
+  margin-bottom: 14px;
   display: inline-block;
   transition: transform 0.3s ease;
 }
