@@ -5,7 +5,12 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 from services import CustomerService, MeterReadingService, BillingService, DashboardService
 from db import db
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
 app.secret_key = "epower_secret_key_change_in_prod"
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
