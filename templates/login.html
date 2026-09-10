@@ -7,14 +7,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Kantumruy+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Siemreap&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ now.timestamp() }}">
 </head>
 <body class="auth-body">
   <div class="auth-container">
     <div class="auth-card">
       <div class="auth-brand">
-        <div class="auth-logo">⚡</div>
-        <h1 class="auth-title">E-POWER</h1>
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="NGP Logo" class="auth-logo-img">
+        <h1 class="auth-title">NGP E-POWER</h1>
         <p class="auth-subtitle">ប្រព័ន្ធគ្រប់គ្រងការប្រើប្រាស់អគ្គិសនី</p>
       </div>
 

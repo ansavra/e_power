@@ -92,6 +92,20 @@ button, input, select, textarea {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.brand-logo-img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 50%;
+  filter: drop-shadow(0 4px 10px rgba(37, 99, 235, 0.4));
+  margin-bottom: 8px;
+  transition: transform 0.25s ease;
+}
+
+.brand-logo-img:hover {
+  transform: scale(1.05);
+}
+
 .brand-title {
   font-size: 1.35rem;
   font-weight: 800;
@@ -732,6 +746,21 @@ button, input, select, textarea {
   line-height: 56px;
   color: #fff;
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.auth-logo-img {
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  border-radius: 50%;
+  filter: drop-shadow(0 8px 20px rgba(37, 99, 235, 0.35));
+  margin-bottom: 10px;
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.auth-logo-img:hover {
+  transform: scale(1.06);
 }
 
 .auth-title {
