@@ -5,26 +5,87 @@ class WebAppTestCase(unittest.TestCase):
     def setUp(self):
         self.client = app.test_client()
 
+    def login_admin(self):
+        return self.client.post('/login', data={
+            'username': 'admin',
+            'password': 'admin123'
+        }, follow_redirects=True)
+
+    def test_unauthenticated_redirect(self):
+        res = self.client.get('/dashboard')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/login', res.headers.get('Location', ''))
+
+    def test_login_page_renders(self):
+        res = self.client.get('/login')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('ចូលប្រើប្រាស់ប្រព័ន្ធ'.encode('utf-8'), res.data)
+        self.assertIn(b'admin', res.data)
+
+    def test_register_page_renders(self):
+        res = self.client.get('/register')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('ចុះឈ្មោះគណនីថ្មី'.encode('utf-8'), res.data)
+
+    def test_login_success(self):
+        res = self.login_admin()
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('ផ្ទាំងគ្រប់គ្រងទូទៅ'.encode('utf-8'), res.data)
+        self.assertIn('Admin'.encode('utf-8'), res.data)
+
+    def test_login_failure(self):
+        res = self.client.post('/login', data={
+            'username': 'admin',
+            'password': 'wrongpassword'
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('មិនត្រឹមត្រូវ'.encode('utf-8'), res.data)
+
+    def test_register_and_login_new_user(self):
+        import uuid
+        test_username = f"user_{uuid.uuid4().hex[:6]}"
+        res = self.client.post('/register', data={
+            'full_name': 'សុខ តេស្ត (Sok Test)',
+            'username': test_username,
+            'password': 'password123',
+            'confirm_password': 'password123'
+        }, follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('ផ្ទាំងគ្រប់គ្រងទូទៅ'.encode('utf-8'), res.data)
+
     def test_dashboard(self):
+        self.login_admin()
         res = self.client.get('/dashboard')
         self.assertEqual(res.status_code, 200)
         self.assertIn(b'E-POWER', res.data)
         self.assertIn('អតិថិជនសរុប'.encode('utf-8'), res.data)
 
     def test_customers(self):
+        self.login_admin()
         res = self.client.get('/customers')
         self.assertEqual(res.status_code, 200)
         self.assertIn('គ្រប់គ្រងព័ត៌មានអតិថិជន'.encode('utf-8'), res.data)
 
     def test_meter_reading_page(self):
+        self.login_admin()
         res = self.client.get('/meter-reading')
         self.assertEqual(res.status_code, 200)
         self.assertIn('កត់ត្រាលេខកុងទ័រ'.encode('utf-8'), res.data)
 
     def test_billing_page(self):
+        self.login_admin()
         res = self.client.get('/billing')
         self.assertEqual(res.status_code, 200)
         self.assertIn('វិក័យបត្រ'.encode('utf-8'), res.data)
+
+    def test_logout(self):
+        self.login_admin()
+        res = self.client.get('/logout', follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('ចូលប្រើប្រាស់ប្រព័ន្ធ'.encode('utf-8'), res.data)
+        # Dashboard should now be protected again
+        res_dash = self.client.get('/dashboard')
+        self.assertEqual(res_dash.status_code, 302)
 
     def test_api_latest_reading(self):
         res = self.client.get('/api/customers/1/latest-reading')
@@ -71,6 +132,7 @@ class WebAppTestCase(unittest.TestCase):
         self.assertEqual(data['total_amount'], 40000.0)
 
     def test_print_invoice_a5(self):
+        self.login_admin()
         res = self.client.get('/invoice/1/print')
         self.assertEqual(res.status_code, 200)
         data = res.data.decode('utf-8')

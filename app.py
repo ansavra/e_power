@@ -1,8 +1,9 @@
 import os
 import calendar
+from functools import wraps
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, redirect, url_for
-from services import CustomerService, MeterReadingService, BillingService, DashboardService
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from services import CustomerService, MeterReadingService, BillingService, DashboardService, UserService
 from db import db
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +20,13 @@ app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 def inject_global_vars():
     return {
         "now": datetime.now(),
-        "is_sql_server": db.is_sql_server
+        "is_sql_server": db.is_sql_server,
+        "current_user": {
+            "user_id": session.get("user_id"),
+            "username": session.get("username"),
+            "full_name": session.get("full_name"),
+            "role": session.get("role")
+        } if session.get("user_id") else None
     }
 
 from urllib.parse import parse_qs, urlencode
@@ -44,19 +51,93 @@ class VercelPathMiddleware:
 
 app.wsgi_app = VercelPathMiddleware(app.wsgi_app)
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("user_id"):
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "error": "សូមចូលគណនីជាមុនសិន (Unauthorized)!"}), 401
+            return redirect(url_for("login", next=request.path))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- Auth Routes ---
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("user_id"):
+        return redirect(url_for("dashboard"))
+    
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        user, err_msg = UserService.authenticate(username, password)
+        if user:
+            session["user_id"] = user["user_id"]
+            session["username"] = user["username"]
+            session["full_name"] = user["full_name"]
+            session["role"] = user["role"]
+            next_url = request.args.get("next")
+            if next_url and next_url.startswith("/"):
+                return redirect(next_url)
+            return redirect(url_for("dashboard"))
+        else:
+            error = err_msg
+
+    return render_template("login.html", error=error)
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if session.get("user_id"):
+        return redirect(url_for("dashboard"))
+    
+    error = None
+    if request.method == "POST":
+        full_name = request.form.get("full_name", "").strip()
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if password != confirm_password:
+            error = "ពាក្យសម្ងាត់ទាំងពីរមិនដូចគ្នាទេ!"
+        else:
+            ok, msg = UserService.register(username, password, full_name)
+            if ok:
+                user, _ = UserService.authenticate(username, password)
+                if user:
+                    session["user_id"] = user["user_id"]
+                    session["username"] = user["username"]
+                    session["full_name"] = user["full_name"]
+                    session["role"] = user["role"]
+                    return redirect(url_for("dashboard"))
+                return redirect(url_for("login"))
+            else:
+                error = msg
+
+    return render_template("register.html", error=error)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
 # --- Page Routes ---
 
 @app.route("/")
+@login_required
 def index():
     return redirect(url_for("dashboard"))
 
 @app.route("/dashboard")
+@login_required
 def dashboard():
     stats = DashboardService.get_stats()
     recent_invoices = BillingService.get_invoices("All")[:8]
     return render_template("dashboard.html", stats=stats, recent_invoices=recent_invoices, active_page="dashboard")
 
 @app.route("/customers")
+@login_required
 def customers():
     search = request.args.get("search", "")
     page = int(request.args.get("page", 1))
@@ -75,6 +156,7 @@ def customers():
     )
 
 @app.route("/meter-reading")
+@login_required
 def meter_reading():
     active_customers = CustomerService.get_all_active()
     recent_readings = MeterReadingService.get_recent(25)
@@ -88,6 +170,7 @@ def meter_reading():
     )
 
 @app.route("/billing")
+@login_required
 def billing():
     status_filter = request.args.get("status", "Unpaid")
     search = request.args.get("search", "")
@@ -103,6 +186,7 @@ def billing():
     )
 
 @app.route("/invoice/<int:invoice_id>/print")
+@login_required
 def print_invoice(invoice_id):
     invoice = BillingService.get_invoice_by_id(invoice_id)
     if not invoice:

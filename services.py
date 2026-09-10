@@ -817,3 +817,83 @@ class DashboardService:
             "total_kwh": total_kwh,
             "is_sql_server": db.is_sql_server
         }
+
+
+from werkzeug.security import generate_password_hash, check_password_hash
+
+class UserService:
+    @classmethod
+    def register(cls, username, password, full_name, role="Staff"):
+        username = (username or "").strip().lower()
+        full_name = (full_name or "").strip()
+        if not username or not password or not full_name:
+            return False, "សូមបំពេញព័ត៌មានចាំបាច់ទាំងអស់ (Username, Password, ឈ្មោះពេញ)!"
+        if len(password) < 4:
+            return False, "ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៤ តួអក្សរឡើងទៅ!"
+        
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT UserID FROM Users WHERE LOWER(Username) = ?", [username])
+        if cur.fetchone():
+            conn.close()
+            return False, f"ឈ្មោះគណនី '{username}' នេះមានរួចហើយ! សូមជ្រើសរើសឈ្មោះផ្សេង។"
+
+        pw_hash = generate_password_hash(password)
+        cur.execute(
+            "INSERT INTO Users (Username, PasswordHash, FullName, Role) VALUES (?, ?, ?, ?)",
+            [username, pw_hash, full_name, role]
+        )
+        new_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        return True, new_id
+
+    @classmethod
+    def authenticate(cls, username, password):
+        username = (username or "").strip().lower()
+        if not username or not password:
+            return None, "សូមបញ្ចូលឈ្មោះគណនី និងពាក្យសម្ងាត់!"
+        
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT UserID, Username, PasswordHash, FullName, Role FROM Users WHERE LOWER(Username) = ?", [username])
+        user_row = cur.fetchone()
+        conn.close()
+
+        if not user_row:
+            return None, "ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវទេ!"
+        
+        pw_hash = user_row["PasswordHash"] if hasattr(user_row, "keys") else user_row[2]
+        
+        valid = False
+        try:
+            valid = check_password_hash(pw_hash, password)
+        except Exception:
+            import hashlib
+            valid = (hashlib.sha256(password.encode()).hexdigest() == pw_hash)
+
+        if not valid:
+            return None, "ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវទេ!"
+
+        return {
+            "user_id": user_row["UserID"] if hasattr(user_row, "keys") else user_row[0],
+            "username": user_row["Username"] if hasattr(user_row, "keys") else user_row[1],
+            "full_name": user_row["FullName"] if hasattr(user_row, "keys") else user_row[3],
+            "role": user_row["Role"] if hasattr(user_row, "keys") else user_row[4],
+        }, None
+
+    @classmethod
+    def get_by_id(cls, user_id):
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT UserID, Username, FullName, Role FROM Users WHERE UserID = ?", [user_id])
+        r = cur.fetchone()
+        conn.close()
+        if r:
+            return {
+                "user_id": r["UserID"] if hasattr(r, "keys") else r[0],
+                "username": r["Username"] if hasattr(r, "keys") else r[1],
+                "full_name": r["FullName"] if hasattr(r, "keys") else r[2],
+                "role": r["Role"] if hasattr(r, "keys") else r[3],
+            }
+        return None

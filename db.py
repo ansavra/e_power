@@ -129,8 +129,33 @@ class Database:
                 CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (ReadingID) REFERENCES MeterReadings(ReadingID) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS Users (
+                UserID INTEGER PRIMARY KEY AUTOINCREMENT,
+                Username TEXT UNIQUE NOT NULL,
+                PasswordHash TEXT NOT NULL,
+                FullName TEXT NOT NULL,
+                Role TEXT DEFAULT 'Admin',
+                CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         conn.commit()
+
+        # Seed default admin user if none exists
+        cur.execute("SELECT COUNT(*) FROM Users")
+        if cur.fetchone()[0] == 0:
+            try:
+                from werkzeug.security import generate_password_hash
+                admin_hash = generate_password_hash("admin123")
+            except Exception:
+                # Fallback simple hash if werkzeug not available yet
+                import hashlib
+                admin_hash = hashlib.sha256("admin123".encode()).hexdigest()
+            cur.execute(
+                "INSERT INTO Users (Username, PasswordHash, FullName, Role) VALUES (?, ?, ?, ?)",
+                ("admin", admin_hash, "អ្នកគ្រប់គ្រង (Admin)", "Admin")
+            )
+            conn.commit()
 
         # Migrate existing database if any columns are missing
         cur.execute("PRAGMA table_info(Customers)")

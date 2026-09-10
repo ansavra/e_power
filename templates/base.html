@@ -57,6 +57,18 @@
         </div>
         <div class="header-meta">
           <span>📅 {{ now.strftime('%A, %d %B %Y') }}</span>
+          {% if current_user %}
+          <div class="user-chip">
+            <span class="user-avatar">👤</span>
+            <div class="user-details">
+              <span class="user-name">{{ current_user.full_name }}</span>
+              <span class="user-role badge badge-primary">{{ current_user.role }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm btn-logout" title="ចាកចេញពីប្រព័ន្ធ">
+              <span>🚪</span> ចាកចេញ
+            </a>
+          </div>
+          {% endif %}
         </div>
       </header>
 
