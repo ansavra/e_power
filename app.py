@@ -25,8 +25,21 @@ def inject_global_vars():
 # --- Page Routes ---
 
 @app.route("/")
+@app.route("/api/index")
+@app.route("/api/index/")
+@app.route("/api/index.py")
 def index():
     return redirect(url_for("dashboard"))
+
+@app.errorhandler(404)
+def handle_404(e):
+    # If the path starts with /api/index, redirect to the stripped path
+    req_path = request.path
+    for prefix in ["/api/index.py", "/api/index"]:
+        if req_path.startswith(prefix):
+            stripped = req_path[len(prefix):] or "/"
+            return redirect(stripped)
+    return f"404 Not Found: {request.path}", 404
 
 @app.route("/dashboard")
 def dashboard():
