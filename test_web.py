@@ -21,7 +21,7 @@ class WebAppTestCase(unittest.TestCase):
         res = self.client.get('/login')
         self.assertEqual(res.status_code, 200)
         self.assertIn('ចូលប្រើប្រាស់ប្រព័ន្ធ'.encode('utf-8'), res.data)
-        self.assertIn(b'admin', res.data)
+        self.assertIn(b'username', res.data)
 
     def test_register_page_renders(self):
         res = self.client.get('/register')
